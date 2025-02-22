@@ -20,18 +20,8 @@ interface State {
   answer: number | null;
   points: number;
   highscore: number;
-  secondsRemaining: number;
+  secondsRemaining: number | null;
 }
-
-const initialState: State = {
-  questions: [],
-  status: "loading",
-  curIndex: 0,
-  answer: null,
-  points: 0,
-  highscore: 0,
-  secondsRemaining: 10,
-};
 
 export type Action =
   | { type: "dataReceived"; payload: QuestionsType[] }
@@ -40,7 +30,20 @@ export type Action =
   | { type: "newAnswer"; payload: number | null }
   | { type: "nextQuestion" }
   | { type: "finish" }
-  | { type: "restart" };
+  | { type: "restart" }
+  | { type: "timer" };
+
+const SECS_PER_QUESTIONS = 30;
+
+const initialState: State = {
+  questions: [],
+  status: "loading",
+  curIndex: 0,
+  answer: null,
+  points: 0,
+  highscore: 0,
+  secondsRemaining: null,
+};
 
 function reducer(state: State, action: Action) {
   switch (action.type) {
@@ -59,6 +62,7 @@ function reducer(state: State, action: Action) {
       return {
         ...state,
         status: "active",
+        secondsRemaining: state.questions.length * SECS_PER_QUESTIONS,
       };
     case "newAnswer":
       const question = state.questions[state.curIndex];
@@ -82,14 +86,30 @@ function reducer(state: State, action: Action) {
       };
     case "restart":
       return { ...initialState, question: state.questions, status: "ready" };
+    case "timer":
+      return {
+        ...state,
+        secondsRemaining: state.secondsRemaining! - 1,
+        status: state.secondsRemaining === 0 ? "finish" : state.status,
+      };
     default:
       throw new Error("Action unknown");
   }
 }
 
 function App() {
-  const [{ questions, status, curIndex, answer, points, highscore }, dispatch] =
-    useReducer(reducer, initialState);
+  const [
+    {
+      questions,
+      status,
+      curIndex,
+      answer,
+      points,
+      highscore,
+      secondsRemaining,
+    },
+    dispatch,
+  ] = useReducer(reducer, initialState);
 
   const numQuestions = questions.length;
   const maxPossiblePoints = questions.reduce(
@@ -136,7 +156,7 @@ function App() {
               answer={answer}
             />
             <Footer>
-              <Timer />
+              <Timer dispatch={dispatch} secondsRemaining={secondsRemaining} />
               <NextButton
                 dispatch={dispatch}
                 answer={answer}
